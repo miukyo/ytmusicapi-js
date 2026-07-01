@@ -1,5 +1,5 @@
 import { nav, to_int, sum_total_duration } from '../helpers';
-import { JsonDict, JsonList } from '../helpers'; // Use helpers types
+import { JsonDict, JsonList } from '../helpers';
 import * as NAV from '../navigation';
 import {
     parse_song_menu_data,
@@ -130,14 +130,11 @@ export function parse_playlist_item(
     const artists = artist_index !== null ? parse_song_artists(data, artist_index) : null;
     const album = album_index !== null ? parse_song_album(data, album_index) : null;
 
-    // Python: views = get_item_text(data, 2) if is_album else None
-    // get_item_text can take multiple args in python, but my implementation in utils.ts handles it.
     const views = is_album ? get_item_text(data, 2) : null;
 
     let duration: string | null = duration_index ? get_item_text(data, duration_index) : null;
 
     if ("fixedColumns" in data) {
-        // ... logic for fixedColumns ...
         if (nav(get_fixed_column_item(data, 0), ["text", "simpleText"], true)) {
             duration = nav(get_fixed_column_item(data, 0), ["text", "simpleText"]);
         } else {
@@ -171,7 +168,6 @@ export function parse_playlist_item(
     };
 
     if (is_album && isAvailable) {
-        // Python: int(nav(data, ["index", "runs", 0, "text"]))
         song["trackNumber"] = parseInt(nav(data, ["index", "runs", 0, "text"]));
     }
 

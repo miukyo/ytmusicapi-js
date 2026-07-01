@@ -1,15 +1,6 @@
 import { nav, find_objects_by_key } from '../helpers';
 import { JsonDict, JsonList } from '../helpers';
 import { DOT_SEPARATOR_RUN } from './constants';
-// constants.py didn't have DOT_SEPARATOR_RUN. Checking imports... 
-// grep for DOT_SEPARATOR_RUN showed it's in ytmusicapi/constants.py?
-// Wait, I read constants.py and it only had domains and languages.
-// Let me double check if I missed something in constants.py or if it's imported from somewhere else.
-// In _utils.py: `from .constants import DOT_SEPARATOR_RUN`.
-// This usually means `ytmusicapi/parsers/constants.py`.
-// Ah, there is a `constants.py` in `ytmusicapi/parsers/`. I missed reading that one! 
-// I saw `ytmusicapi/constants.py` (root) but not the one in parsers.
-// I need that file.
 
 export function parse_menu_playlists(data: JsonDict, result: JsonDict): void {
     const MENU_ITEMS = ["menu", "menuRenderer", "items"];
@@ -79,13 +70,7 @@ export function get_fixed_column_item(item: JsonDict, index: int): JsonDict | nu
 }
 
 export function get_dot_separator_index(runs: JsonList): number {
-    // We need DOT_SEPARATOR_RUN.
-    // For now I'll assume it's `{"text": " • "}` or similar.
-    // Python code: `runs.index(DOT_SEPARATOR_RUN)`.
-    // I really need to check parsers/constants.py.
-
-    // Assuming simple check for now, can fix later.
-    const index = runs.findIndex((run: any) => run.text === " • ");
+    const index = runs.findIndex((run: any) => run.text === DOT_SEPARATOR_RUN.text);
     return index === -1 ? runs.length : index;
 }
 
@@ -93,7 +78,7 @@ export function parse_duration(duration: string | null): number | null {
     if (!duration || !duration.trim()) return null;
 
     const duration_split = duration.trim().split(":");
-    // Python code checks if all parts are digits.
+
     if (!duration_split.every(d => /^\d+$/.test(d))) return null;
 
     const multipliers = [1, 60, 3600];
@@ -107,9 +92,6 @@ export function parse_duration(duration: string | null): number | null {
 }
 
 export function parse_id_name(sub_run: JsonDict | null): JsonDict {
-    // NAVIGATION_BROWSE_ID needs to be imported or defined.
-    // Using string path for now, or importing from helpers/constants.
-    // "navigationEndpoint", "browseEndpoint", "browseId"
     const NAVIGATION_BROWSE_ID = ["navigationEndpoint", "browseEndpoint", "browseId"];
 
     return {

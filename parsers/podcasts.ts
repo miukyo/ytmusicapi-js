@@ -80,12 +80,7 @@ export function parse_podcast_header(header: JsonDict): JsonDict {
 export function parse_episode_header(header: JsonDict): JsonDict {
     const metadata = parse_base_header(header);
     metadata["date"] = nav(header, NAV.SUBTITLE);
-    const progress_renderer = nav(header, ["progress", "musicPlaybackProgressRenderer"]); // NAV.PROGRESS_RENDERER is ["musicPlaybackProgressRenderer"]
-    // But I didn't export PROGRESS_RENDERER from navigation.ts because I might have missed checking navigation.py thoroughly for everything?
-    // Let me check navigation.ts content.
-    // Yes, PROGRESS_RENDERER is likely missing if it was in the file but I missed it.
-    // I can manually add it here or use string literal. 
-    // python: PROGRESS_RENDERER = ["musicPlaybackProgressRenderer"]
+    const progress_renderer = nav(header, ["progress", "musicPlaybackProgressRenderer"]);
 
     metadata["duration"] = nav(progress_renderer, ["durationText", "runs", 1, "text"], true);
     metadata["progressPercentage"] = nav(progress_renderer, ["playbackProgressPercentage"]);

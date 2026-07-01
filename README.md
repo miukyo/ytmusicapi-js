@@ -7,10 +7,16 @@ An unofficial API for YouTube Music, ported to TypeScript and Node.js.
 
 ## Features
 
-- **Search**: Search for songs, videos, albums, artists, and playlists.
-- **Browse**: Fetch metadata for artists, albums, and tracks.
-- **Song Credits**: Retrieve credits for songs (`get_song_credits`).
-- **Authentication**: Set up and parse browser-based request headers to access authenticated endpoints.
+- **Search**: Search for songs, videos, albums, artists, playlists, episodes, and podcasts with custom filters and scopes.
+- **Browsing**: Retrieve details for albums, artists, individual tracks, and song credits.
+- **Library**: List and manage playlists, saved songs, albums, artists, subscribed channels, and listen history.
+- **Playlists**: Create, edit, delete, collaborate on, and manage items inside playlists.
+- **Explore & Charts**: Fetch new releases, trending content, global/regional charts, and mood/genre playlists.
+- **Podcasts**: Fetch show information, episodes list, episode details, and channel updates.
+- **Uploads**: Upload audio files (`mp3`, `m4a`, `flac`, etc.) directly to YouTube Music and manage user-uploaded tracks, albums, or artists.
+- **Watch & Radio**: Generate queue watchlists and radio stations based on track/playlist seeding.
+- **Streaming**: Extract direct, unsigned audio stream URLs for tracks by mimicking Innertube mobile client payloads.
+- **Authentication**: Set up and parse browser-based request headers to access authenticated and personal account endpoints.
 
 ## Installation
 
@@ -149,6 +155,12 @@ The main `YTMusic` class exposes the following public methods:
 ### Watch
 * **`get_watch_playlist(videoId?: string | null, playlistId?: string | null, limit?: number, radio?: boolean, shuffle?: boolean): Promise<JsonDict>`**
   * Generates a watch panel track queue (radio/related items).
+
+### Streaming
+* **`get_streaming_data(videoId: string): Promise<JsonDict>`**
+  * Fetches raw streaming formats/metadata using the unencrypted `ANDROID_VR` mobile client client definition.
+* **`get_stream_url(videoId: string): Promise<string | null>`**
+  * Returns the direct unsigned audio streaming URL (prioritizing Opus `251` and AAC `140` streams).
 
 ---
 

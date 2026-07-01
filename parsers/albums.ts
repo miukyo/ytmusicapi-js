@@ -4,7 +4,6 @@ import { parse_song_runs, parse_like_status } from './songs';
 import { parse_artists_runs } from './artists';
 import * as NAV from '../navigation';
 
-
 export function parse_album_header(response: JsonDict): JsonDict {
     const header = nav(response, NAV.HEADER_DETAIL);
     const album: JsonDict = {

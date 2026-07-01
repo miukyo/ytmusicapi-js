@@ -1547,4 +1547,69 @@ export class YTMusic {
             related: related_browse_id
         };
     }
+
+    public async get_streaming_data(videoId: string): Promise<JsonDict> {
+        const apiKey = YTM_PARAMS_KEY.split("=")[1];
+        const url = `${YTM_BASE_API}player?alt=json&key=${apiKey}`;
+        const body = {
+            "videoId": videoId,
+            "contentCheckOk": true,
+            "context": {
+                "client": {
+                    "clientName": "ANDROID_VR",
+                    "clientVersion": "1.60.19",
+                    "deviceMake": "Oculus",
+                    "deviceModel": "Quest 3",
+                    "osName": "Android",
+                    "osVersion": "12L",
+                    "platform": "MOBILE",
+                    "hl": this.language,
+                    "gl": "US",
+                    "utcOffsetMinutes": 0
+                }
+            }
+        };
+
+        const headers = {
+            "User-Agent": "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; Quest 3 Build/SQ3A.220605.009.A1) gzip",
+            "Origin": "https://music.youtube.com",
+            "Content-Type": "application/json"
+        };
+
+        const response = await this._session.post(url, body, { headers });
+        if (response.data.error) {
+            throw new YTMusicServerError(response.data.error.message || "Player Request failed");
+        }
+        return response.data.streamingData || {};
+    }
+
+    public async get_stream_url(videoId: string): Promise<string | null> {
+        const streamingData = await this.get_streaming_data(videoId);
+        const formats = [
+            ...(streamingData.formats || []),
+            ...(streamingData.adaptiveFormats || [])
+        ];
+
+        const audioStreams = formats.filter((format: any) =>
+            format.mimeType && format.mimeType.startsWith("audio/")
+        );
+
+        if (audioStreams.length === 0) {
+            const videoStreams = formats.filter((format: any) => format.url);
+            return videoStreams.length > 0 ? videoStreams[0].url : null;
+        }
+
+        audioStreams.sort((a: any, b: any) => {
+            const itagA = a.itag;
+            const itagB = b.itag;
+            if (itagA === 251) return -1;
+            if (itagB === 251) return 1;
+            if (itagA === 140) return -1;
+            if (itagB === 140) return 1;
+            return (b.bitrate || 0) - (a.bitrate || 0);
+        });
+
+        const bestStream = audioStreams.find((format: any) => format.url);
+        return bestStream ? bestStream.url : null;
+    }
 }
