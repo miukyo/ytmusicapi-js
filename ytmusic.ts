@@ -36,7 +36,8 @@ import {
     parse_content_list,
     parse_playlist,
     parse_video,
-    parse_album
+    parse_album,
+    parse_mixed_content
 } from './parsers/browsing';
 import {
     parse_chart_song,
@@ -1611,5 +1612,28 @@ export class YTMusic {
 
         const bestStream = audioStreams.find((format: any) => format.url);
         return bestStream ? bestStream.url : null;
+    }
+
+    public async get_home(limit: number = 3): Promise<JsonList> {
+        const endpoint = "browse";
+        const body = { "browseId": "FEmusic_home" };
+        const response = await this._send_request(endpoint, body);
+        const results = nav(response, [...NAV.SINGLE_COLUMN_TAB, ...NAV.SECTION_LIST]);
+        const home = parse_mixed_content(results);
+
+        const section_list = nav(response, [...NAV.SINGLE_COLUMN_TAB, "sectionListRenderer"]);
+        if ("continuations" in section_list) {
+            const request_func = (additionalParams: string) => this._send_request(endpoint, body, additionalParams);
+            const parse_func = (contents: JsonList) => parse_mixed_content(contents);
+            home.push(...(await get_continuations(
+                section_list,
+                "sectionListContinuation",
+                limit - home.length,
+                request_func,
+                parse_func
+            )));
+        }
+
+        return home;
     }
 }

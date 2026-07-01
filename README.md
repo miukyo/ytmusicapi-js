@@ -53,6 +53,8 @@ The main `YTMusic` class exposes the following public methods:
   * Retrieves search suggestions for the provided query string.
 
 ### Browsing
+* **`get_home(limit?: number): Promise<JsonList>`**
+  * Retrieves home page sections (recommendations, quick picks, etc.).
 * **`get_artist(channelId: string): Promise<JsonDict>`**
   * Fetches detailed information about an artist.
 * **`get_album(browseId: string): Promise<JsonDict>`**

@@ -53,4 +53,11 @@ describe('Browsing Mixin Tests', () => {
         expect(credits).toBeTypeOf('object');
         expect(credits.other_sections).toBeTypeOf('object');
     });
+
+    it('test_get_home', async () => {
+        const home = await yt.get_home(3);
+        expect(home.length).toBeGreaterThan(0);
+        expect(home[0]).toHaveProperty('title');
+        expect(home[0]).toHaveProperty('contents');
+    }, 20000);
 });
