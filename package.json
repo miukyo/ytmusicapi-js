@@ -1,9 +1,12 @@
 {
-  "name": "ytmusicapi-node",
+  "name": "ytmusicapi-js",
   "version": "1.0.0",
-  "description": "Unofficial API for YouTube Music (Node.js port)",
+  "description": "Unofficial API for YouTube Music (Node.js/TypeScript port)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest",
@@ -12,7 +15,10 @@
   "keywords": [
     "youtube",
     "music",
-    "api"
+    "api",
+    "ytmusicapi",
+    "typescript",
+    "node"
   ],
   "author": "",
   "license": "MIT",
