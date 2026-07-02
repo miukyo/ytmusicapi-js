@@ -33,8 +33,12 @@ export function initialize_context(): JsonDict {
     };
 }
 
-export async function get_visitor_id(): Promise<string> {
-    const response = await axios.get(YTM_DOMAIN);
+export async function get_visitor_id(headers?: Record<string, string>): Promise<string> {
+    const response = await axios.get(YTM_DOMAIN, {
+        headers: Object.assign({
+            "User-Agent": USER_AGENT,
+        }, headers)
+    });
     const matches = /ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;/.exec(response.data);
     let visitor_id = "";
     if (matches && matches.length > 0) {

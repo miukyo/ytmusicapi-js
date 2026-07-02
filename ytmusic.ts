@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { setupCache, buildKeyGenerator } from 'axios-cache-interceptor';
 import {
     initialize_context,
     initialize_headers,
@@ -84,7 +85,7 @@ function html_to_txt(html: string): string {
 }
 
 function validate_playlist_id(playlistId: string): string {
-    return playlistId.startsWith("VL") ? playlistId : "VL" + playlistId;
+    return playlistId.startsWith("VL") ? playlistId.slice(2) : playlistId;
 }
 
 function get_vote_option_argument(option: PlaylistVoteEditOptions): string {
@@ -140,6 +141,7 @@ export class YTMusic {
     private params: string = YTM_PARAMS;
     private _token: any = null;
     public parser: Parser;
+    private _base_headers: Record<string, string> | null = null;
 
     constructor(
         auth: string | JsonDict | null = null,
@@ -149,7 +151,17 @@ export class YTMusic {
         location: string = "",
         oauth_credentials: any | null = null
     ) {
-        this._session = axios.create();
+        this._session = setupCache(axios.create(), {
+            methods: ['get', 'post'],
+            interpretHeader: false,
+            ttl: 10 * 365 * 24 * 60 * 60 * 1000, // 10 years (effectively session-long for memory storage)
+            generateKey: buildKeyGenerator((request: any) => {
+                const headersStr = request.headers ? JSON.stringify(request.headers) : '';
+                const dataStr = request.data ? (typeof request.data === 'string' ? request.data : JSON.stringify(request.data)) : '';
+                const paramsStr = request.params ? JSON.stringify(request.params) : '';
+                return `${request.method?.toUpperCase()}:${request.url}:${paramsStr}:${dataStr}:${headersStr}`;
+            })
+        }) as any;
         this.proxies = proxies;
 
         if (auth) {
@@ -206,20 +218,25 @@ export class YTMusic {
     }
 
     private async _prepare_headers(): Promise<Record<string, string>> {
-        let headers: Record<string, string> = {};
+        if (!this._base_headers) {
+            let headers: Record<string, string> = {};
 
-        if (this.auth_type === AuthType.BROWSER || this.auth_type === AuthType.OAUTH_CUSTOM_FULL) {
-            Object.assign(headers, this._auth_headers);
-        } else {
-            Object.assign(headers, initialize_headers());
-        }
-
-        if (!headers["X-Goog-Visitor-Id"]) {
-            const visitorId = await get_visitor_id();
-            if (visitorId) {
-                headers["X-Goog-Visitor-Id"] = visitorId;
+            if (this.auth_type === AuthType.BROWSER || this.auth_type === AuthType.OAUTH_CUSTOM_FULL) {
+                Object.assign(headers, this._auth_headers);
+            } else {
+                Object.assign(headers, initialize_headers());
             }
+
+            if (!headers["X-Goog-Visitor-Id"]) {
+                const visitorId = await get_visitor_id(headers);
+                if (visitorId) {
+                    headers["X-Goog-Visitor-Id"] = visitorId;
+                }
+            }
+            this._base_headers = headers;
         }
+
+        const headers = Object.assign({}, this._base_headers);
 
         if (this.auth_type === AuthType.BROWSER) {
             headers["authorization"] = get_authorization(this.sapisid + " " + this.origin);
@@ -231,7 +248,6 @@ export class YTMusic {
     private async _send_request(endpoint: string, body: JsonDict, additionalParams: string = ""): Promise<JsonDict> {
         Object.assign(body, this.context);
         const headers = await this._prepare_headers();
-
         const cookieStrings = Object.entries(this.cookies).map(([k, v]) => `${k}=${v}`);
         if (headers["cookie"]) {
             cookieStrings.push(headers["cookie"]);
@@ -456,7 +472,7 @@ export class YTMusic {
         const section_list = nav(response, [...NAV.TWO_COLUMN_RENDERER, "secondaryContents", ...NAV.SECTION]);
         const playlist: JsonDict = {};
         playlist["owned"] = NAV.EDITABLE_PLAYLIST_DETAIL_HEADER[0] in header_data;
-        
+
         let header;
         if (!playlist["owned"]) {
             header = nav(header_data, NAV.RESPONSIVE_HEADER);
@@ -901,7 +917,7 @@ export class YTMusic {
             ]
         );
         charts["countries"]["selected"] = nav(menu, NAV.TITLE);
-        
+
         const mutations = nav(response, NAV.FRAMEWORK_MUTATIONS, true) || [];
         charts["countries"]["options"] = mutations
             .map((m: any) => nav(m, ["payload", "musicFormBooleanChoice", "opaqueToken"], true))
@@ -1361,7 +1377,7 @@ export class YTMusic {
         const body = { "browseId": browseId };
         const endpoint = "browse";
         const response = await this._send_request(endpoint, body);
-        
+
         // Note: parse_album_header is parsed from response
         const album = parse_album_header_2024(response);
         const results = nav(response, [...NAV.SINGLE_COLUMN_TAB, ...NAV.SECTION_LIST_ITEM, ...NAV.MUSIC_SHELF]);
@@ -1375,7 +1391,7 @@ export class YTMusic {
         if (this.auth_type !== AuthType.BROWSER) {
             throw new YTMusicUserError("Please provide browser authentication before using this function");
         }
-        
+
         const fs = await import('fs');
         const path = await import('path');
         if (!fs.existsSync(filepath) || !fs.statSync(filepath).isFile()) {
@@ -1400,7 +1416,7 @@ export class YTMusic {
 
         const filename = path.basename(filepath);
         const body = "filename=" + encodeURIComponent(filename);
-        
+
         const upload_headers = { ...headers };
         delete upload_headers["content-encoding"];
         upload_headers["content-type"] = "application/x-www-form-urlencoded;charset=utf-8";
@@ -1410,7 +1426,7 @@ export class YTMusic {
 
         const start_response = await this._session.post(upload_url, body, { headers: upload_headers });
         const upload_url_session = start_response.headers["x-goog-upload-url"];
-        
+
         const finalize_headers = { ...headers };
         delete finalize_headers["content-encoding"];
         finalize_headers["X-Goog-Upload-Command"] = "upload, finalize";
@@ -1525,7 +1541,7 @@ export class YTMusic {
                 break;
             }
         }
-        
+
         const tracks = parse_watch_playlist(results["contents"]);
 
         if ("continuations" in results) {
@@ -1571,11 +1587,22 @@ export class YTMusic {
             }
         };
 
+        const sessionHeaders = await this._prepare_headers();
+        const cookieStrings = Object.entries(this.cookies).map(([k, v]) => `${k}=${v}`);
+        if (sessionHeaders["cookie"]) {
+            cookieStrings.push(sessionHeaders["cookie"]);
+        }
+
         const headers = {
-            "User-Agent": "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; Quest 3 Build/SQ3A.220605.009.A1) gzip",
             "Origin": "https://music.youtube.com",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Cookie": cookieStrings.join("; "),
+            ...sessionHeaders,
+            "User-Agent": "com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; Quest 3 Build/SQ3A.220605.009.A1) gzip"
         };
+        if ("user-agent" in headers) {
+            delete (headers as any)["user-agent"];
+        }
 
         const response = await this._session.post(url, body, { headers });
         if (response.data.error) {
@@ -1586,10 +1613,12 @@ export class YTMusic {
 
     public async get_stream_url(videoId: string): Promise<string | null> {
         const streamingData = await this.get_streaming_data(videoId);
+
         const formats = [
             ...(streamingData.formats || []),
             ...(streamingData.adaptiveFormats || [])
         ];
+
 
         const audioStreams = formats.filter((format: any) =>
             format.mimeType && format.mimeType.startsWith("audio/")
@@ -1609,7 +1638,6 @@ export class YTMusic {
             if (itagB === 140) return 1;
             return (b.bitrate || 0) - (a.bitrate || 0);
         });
-
         const bestStream = audioStreams.find((format: any) => format.url);
         return bestStream ? bestStream.url : null;
     }
@@ -1635,5 +1663,40 @@ export class YTMusic {
         }
 
         return home;
+    }
+
+    public async get_lyrics(browseId: string): Promise<JsonDict> {
+        if (!browseId) {
+            throw new YTMusicUserError("Invalid browseId provided");
+        }
+        const body = { "browseId": browseId };
+        const response = await this._send_request("browse", body);
+
+        const lyricsRenderer = nav(
+            response,
+            [
+                "contents",
+                "sectionListRenderer",
+                "contents",
+                0,
+                "musicDescriptionShelfRenderer"
+            ],
+            true
+        );
+
+        if (!lyricsRenderer) {
+            return {
+                "lyrics": null,
+                "source": null
+            };
+        }
+
+        const lyrics = nav(lyricsRenderer, ["description", ...NAV.RUN_TEXT], true);
+        const source = nav(lyricsRenderer, ["footer", ...NAV.RUN_TEXT], true);
+
+        return {
+            "lyrics": lyrics,
+            "source": source
+        };
     }
 }
